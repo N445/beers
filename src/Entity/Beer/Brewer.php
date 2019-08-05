@@ -21,7 +21,7 @@ class Brewer
     private $id;
 
     /**
-     * @ORM\Column(type="string", length=150)
+     * @ORM\Column(type="string", length=150, unique=true)
      */
     private $name;
 

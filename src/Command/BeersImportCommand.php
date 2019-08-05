@@ -156,8 +156,10 @@ class BeersImportCommand extends Command
         $this->setHeader();
         $this->setBody();
         $nb_created_beer = 0;
+        $i               = 0;
         $progressBar     = new ProgressBar($output, count($this->body));
         $progressBar->start();
+
         foreach ($this->body as $row) {
             $progressBar->advance();
             if (in_array($row[self::HEADER_NAME], $this->beer) || in_array($row[self::HEADER_NAME], $this->created_beer)) {
@@ -173,7 +175,13 @@ class BeersImportCommand extends Command
             $beer->setCategory($this->getCategory($row[self::HEADER_CATEGORY]));
             $beer->setBrewer($this->getBrewer($row));
             $this->em->persist($beer);
+            $this->created_beer[] = $beer->getName();
             $nb_created_beer++;
+            $i++;
+//            $beer->getName();
+            if ($i % 500) {
+                $this->em->flush();
+            }
         }
         $progressBar->finish();
         $this->em->flush();
@@ -213,9 +221,9 @@ class BeersImportCommand extends Command
             $this->category[$category->getName()] = $category;
         }
 
-        $this->beer[] = array_map(function (Beer $beer) {
-            return $beer->getName();
-        }, $this->beerRepository->findAll());
+        foreach ($this->beerRepository->findAll() as $beer) {
+            $this->beer[] = $beer->getName();
+        }
     }
 
     /**
@@ -224,10 +232,10 @@ class BeersImportCommand extends Command
      */
     private function getStyle($name)
     {
-        if (in_array($name, $this->style)) {
+        if (array_key_exists($name, $this->style)) {
             return $this->style[$name];
         }
-        if (in_array($name, $this->created_style)) {
+        if (array_key_exists($name, $this->created_style)) {
             return $this->created_style[$name];
         }
 
@@ -242,11 +250,11 @@ class BeersImportCommand extends Command
      */
     private function getCategory($name)
     {
-        if (in_array($name, $this->category)) {
+        if (array_key_exists($name, $this->category)) {
             return $this->category[$name];
         }
 
-        if (in_array($name, $this->created_category)) {
+        if (array_key_exists($name, $this->created_category)) {
             return $this->created_category[$name];
         }
 
@@ -256,16 +264,16 @@ class BeersImportCommand extends Command
     }
 
     /**
-     * @param $name
+     * @param $row
      * @return Brewer
      */
     private function getBrewer($row)
     {
-        if (in_array($row[self::HEADER_BREWER], $this->brewer)) {
+        if (array_key_exists($row[self::HEADER_BREWER], $this->brewer)) {
             return $this->brewer[$row[self::HEADER_BREWER]];
         }
 
-        if (in_array($row[self::HEADER_BREWER], $this->created_brewer)) {
+        if (array_key_exists($row[self::HEADER_BREWER], $this->created_brewer)) {
             return $this->created_brewer[$row[self::HEADER_BREWER]];
         }
         $brewer = new Brewer($row[self::HEADER_BREWER]);
