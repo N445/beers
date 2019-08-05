@@ -27,6 +27,12 @@ class Coordinate
      */
     private $lng;
 
+    public function __construct($lat = null, $lng = null)
+    {
+        $this->lat = $lat;
+        $this->lng = $lng;
+    }
+
     /**
      * @return int|null
      */

@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Beer{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <ul>
+            {% for beer in beers %}
+                <li>{{ beer.name }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endblock %}

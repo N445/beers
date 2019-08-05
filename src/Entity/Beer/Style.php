@@ -31,10 +31,12 @@ class Style
 
     /**
      * Style constructor.
+     * @param null $name
      */
-    public function __construct()
+    public function __construct($name = null)
     {
         $this->beers = new ArrayCollection();
+        $this->name  = $name;
     }
 
     /**

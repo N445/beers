@@ -2,6 +2,7 @@
 
 namespace App\Entity\Beer;
 
+use App\Entity\Beer;
 use App\Entity\Coordinate;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -55,11 +56,19 @@ class Brewer
     private $coordinate;
 
     /**
-     * Brewer constructor.
+     * @ORM\OneToMany(targetEntity="App\Entity\Beer", mappedBy="brewer")
      */
-    public function __construct()
+    private $beers;
+
+    /**
+     * Brewer constructor.
+     * @param null $name
+     */
+    public function __construct($name = null)
     {
         $this->coordinate = new ArrayCollection();
+        $this->beers      = new ArrayCollection();
+        $this->name       = $name;
     }
 
     /**
@@ -199,6 +208,37 @@ class Brewer
     public function setCoordinate(?Coordinate $coordinate): self
     {
         $this->coordinate = $coordinate;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|Beer[]
+     */
+    public function getBeers(): Collection
+    {
+        return $this->beers;
+    }
+
+    public function addBeer(Beer $beer): self
+    {
+        if (!$this->beers->contains($beer)) {
+            $this->beers[] = $beer;
+            $beer->setBrewer($this);
+        }
+
+        return $this;
+    }
+
+    public function removeBeer(Beer $beer): self
+    {
+        if ($this->beers->contains($beer)) {
+            $this->beers->removeElement($beer);
+            // set the owning side to null (unless already changed)
+            if ($beer->getBrewer() === $this) {
+                $beer->setBrewer(null);
+            }
+        }
 
         return $this;
     }

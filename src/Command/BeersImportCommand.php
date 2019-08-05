@@ -2,12 +2,21 @@
 
 namespace App\Command;
 
+use App\Entity\Beer;
+use App\Entity\Beer\Brewer;
+use App\Entity\Beer\Category;
+use App\Entity\Beer\Style;
+use App\Entity\Coordinate;
 use App\Kernel;
 use App\Repository\Beer\BrewerRepository;
 use App\Repository\Beer\CategoryRepository;
 use App\Repository\Beer\StyleRepository;
 use App\Repository\BeerRepository;
+use DateTime;
+use DateTimeZone;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -33,6 +42,13 @@ class BeersImportCommand extends Command
     const HEADER_LAST_MOD                       = 'last_mod';
     const HEADER_STYLE                          = 'Style';
     const HEADER_CATEGORY                       = 'Category';
+    const HEADER_BREWER                         = 'Brewer';
+    const HEADER_ADDRESS                        = 'Address';
+    const HEADER_CITY                           = 'City';
+    const HEADER_STATE                          = 'State';
+    const HEADER_COUNTRY                        = 'Country';
+    const HEADER_COORDINATES                    = 'Coordinates';
+    const HEADER_WEBSITE                        = 'Website';
 
     const FILE_DIR = '/var/data/beers/';
     const FILENAME = 'beers.csv';
@@ -59,17 +75,69 @@ class BeersImportCommand extends Command
 
     private $header;
 
-    private $body;
+    private $body = [];
+
+    /**
+     * @var BrewerRepository
+     */
+    private $brewerRepository;
+
+    /**
+     * @var CategoryRepository
+     */
+    private $categoryRepository;
+
+    /**
+     * @var StyleRepository
+     */
+    private $styleRepository;
+
+    /**
+     * @var BeerRepository
+     */
+    private $beerRepository;
+
+    private $brewer           = [];
+
+    private $style            = [];
+
+    private $category         = [];
+
+    private $beer             = [];
+
+    private $created_brewer   = [];
+
+    private $created_style    = [];
+
+    private $created_category = [];
+
+    private $created_beer     = [];
+
+    /**
+     * @var EntityManagerInterface
+     */
+    private $em;
 
     public function __construct($name = null,
                                 KernelInterface $kernel,
-                                Filesystem $filesystem)
+                                Filesystem $filesystem,
+                                BrewerRepository $brewerRepository,
+                                CategoryRepository $categoryRepository,
+                                StyleRepository $styleRepository,
+                                BeerRepository $beerRepository,
+                                EntityManagerInterface $em
+    )
     {
         $this->kernel      = $kernel;
         $this->project_dir = $kernel->getProjectDir();
         $this->filesystem  = $filesystem;
         $this->filepath    = $this->project_dir . self::FILE_DIR . self::FILENAME;
-        $this->body        = [];
+
+        $this->brewerRepository   = $brewerRepository;
+        $this->categoryRepository = $categoryRepository;
+        $this->styleRepository    = $styleRepository;
+        $this->beerRepository     = $beerRepository;
+        $this->em                 = $em;
         parent::__construct($name);
     }
 
@@ -83,13 +151,33 @@ class BeersImportCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
+        $this->getExistingData();
         $this->csvFile = file($this->filepath);
         $this->setHeader();
         $this->setBody();
-        dump($this->header);
-        dump($this->body);
-
-        $io->success('You have a new command! Now make it your own! Pass --help to see your options.');
+        $nb_created_beer = 0;
+        $progressBar     = new ProgressBar($output, count($this->body));
+        $progressBar->start();
+        foreach ($this->body as $row) {
+            $progressBar->advance();
+            if (in_array($row[self::HEADER_NAME], $this->beer) || in_array($row[self::HEADER_NAME], $this->created_beer)) {
+                continue;
+            }
+            $beer = new Beer();
+            $beer->setName($row[self::HEADER_NAME])
+                 ->setDescription($row[self::HEADER_DESCRIPTION])
+                 ->setAlcohol((float)$row[self::HEADER_ALCOHOL_BY_VOLUME])
+                 ->setLastMod(new DateTime($row[self::HEADER_LAST_MOD], new DateTimeZone('Europe/Paris')))
+            ;
+            $beer->setStyle($this->getStyle($row[self::HEADER_STYLE]));
+            $beer->setCategory($this->getCategory($row[self::HEADER_CATEGORY]));
+            $beer->setBrewer($this->getBrewer($row));
+            $this->em->persist($beer);
+            $nb_created_beer++;
+        }
+        $progressBar->finish();
+        $this->em->flush();
+        $io->success('Bieres importé avec succés !');
     }
 
 
@@ -109,5 +197,106 @@ class BeersImportCommand extends Command
             }
             $this->body[] = array_combine($this->header, $values);
         }
+    }
+
+    private function getExistingData()
+    {
+        foreach ($this->brewerRepository->findAll() as $brewer) {
+            $this->brewer[$brewer->getName()] = $brewer;
+        }
+
+        foreach ($this->styleRepository->findAll() as $style) {
+            $this->style[$style->getName()] = $style;
+        }
+
+        foreach ($this->categoryRepository->findAll() as $category) {
+            $this->category[$category->getName()] = $category;
+        }
+
+        $this->beer[] = array_map(function (Beer $beer) {
+            return $beer->getName();
+        }, $this->beerRepository->findAll());
+    }
+
+    /**
+     * @param $name
+     * @return Style
+     */
+    private function getStyle($name)
+    {
+        if (in_array($name, $this->style)) {
+            return $this->style[$name];
+        }
+        if (in_array($name, $this->created_style)) {
+            return $this->created_style[$name];
+        }
+
+        $style                                  = new Style($name);
+        $this->created_style[$style->getName()] = $style;
+        return $style;
+    }
+
+    /**
+     * @param $name
+     * @return Category
+     */
+    private function getCategory($name)
+    {
+        if (in_array($name, $this->category)) {
+            return $this->category[$name];
+        }
+
+        if (in_array($name, $this->created_category)) {
+            return $this->created_category[$name];
+        }
+
+        $category                                     = new Category($name);
+        $this->created_category[$category->getName()] = $category;
+        return $category;
+    }
+
+    /**
+     * @param $name
+     * @return Brewer
+     */
+    private function getBrewer($row)
+    {
+        if (in_array($row[self::HEADER_BREWER], $this->brewer)) {
+            return $this->brewer[$row[self::HEADER_BREWER]];
+        }
+
+        if (in_array($row[self::HEADER_BREWER], $this->created_brewer)) {
+            return $this->created_brewer[$row[self::HEADER_BREWER]];
+        }
+        $brewer = new Brewer($row[self::HEADER_BREWER]);
+        $brewer->setAddress($row[self::HEADER_ADDRESS])
+               ->setCity($row[self::HEADER_CITY])
+               ->setCoordinate($this->getCoordinate($row[self::HEADER_COORDINATES]))
+               ->setCountry($row[self::HEADER_COUNTRY])
+               ->setState($row[self::HEADER_STATE])
+               ->setWebsite($row[self::HEADER_WEBSITE])
+        ;
+
+        $this->created_brewer[$brewer->getName()] = $brewer;
+        return $brewer;
+    }
+
+    /**
+     * @param $coordinate
+     * @return Coordinate|null
+     */
+    private function getCoordinate($coordinate)
+    {
+        if (empty($coordinate)) {
+            return null;
+        }
+        $explodedData = explode(',', $coordinate);
+        if (!is_array($explodedData)) {
+            return null;
+        }
+        return new Coordinate(
+            (float)$explodedData[0],
+            (float)$explodedData[1]
+        );
     }
 }

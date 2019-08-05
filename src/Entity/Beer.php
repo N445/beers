@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Entity\Beer\Brewer;
 use App\Entity\Beer\Category;
 use App\Entity\Beer\Style;
 use Doctrine\ORM\Mapping as ORM;
@@ -39,14 +40,19 @@ class Beer
     private $last_mod;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Beer\Style", inversedBy="beers")
+     * @ORM\ManyToOne(targetEntity="App\Entity\Beer\Style", inversedBy="beers",cascade={"persist"})
      */
     private $style;
 
     /**
-     * @ORM\ManyToOne(targetEntity="App\Entity\Beer\Category", inversedBy="beers")
+     * @ORM\ManyToOne(targetEntity="App\Entity\Beer\Category", inversedBy="beers",cascade={"persist"})
      */
     private $category;
+
+    /**
+     * @ORM\ManyToOne(targetEntity="App\Entity\Beer\Brewer", inversedBy="beers",cascade={"persist"})
+     */
+    private $brewer;
 
     /**
      * @return int|null
@@ -166,6 +172,18 @@ class Beer
     public function setCategory(?Category $category): self
     {
         $this->category = $category;
+
+        return $this;
+    }
+
+    public function getBrewer(): ?Brewer
+    {
+        return $this->brewer;
+    }
+
+    public function setBrewer(?Brewer $brewer): self
+    {
+        $this->brewer = $brewer;
 
         return $this;
     }
