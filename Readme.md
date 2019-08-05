@@ -1,6 +1,9 @@
-#Beers
+Beers
+=====
 
 ##Installation
+--------------
+
 ```
 composer install
 yarn install
