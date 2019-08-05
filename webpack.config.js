@@ -23,9 +23,10 @@ Encore
      * Each entry will result in one JavaScript file (e.g. app.js)
      * and one CSS file (e.g. app.css) if your JavaScript imports CSS.
      */
-    .addEntry('app', './assets/js/app.js')
+    .addEntry('js/app', './assets/js/app.js')
     //.addEntry('page1', './assets/js/page1.js')
     //.addEntry('page2', './assets/js/page2.js')
+    .addStyleEntry('css/style','./assets/sass/style.scss')
 
     // When enabled, Webpack "splits" your files into smaller pieces for greater optimization.
     .splitEntryChunks()
@@ -54,17 +55,17 @@ Encore
     })
 
     // enables Sass/SCSS support
-    //.enableSassLoader()
+    .enableSassLoader()
 
     // uncomment if you use TypeScript
     //.enableTypeScriptLoader()
 
     // uncomment to get integrity="..." attributes on your script & link tags
     // requires WebpackEncoreBundle 1.4 or higher
-    //.enableIntegrityHashes(Encore.isProduction())
+    .enableIntegrityHashes(Encore.isProduction())
 
     // uncomment if you're having problems with a jQuery plugin
-    //.autoProvidejQuery()
+    .autoProvidejQuery()
 
     // uncomment if you use API Platform Admin (composer req api-admin)
     //.enableReactPreset()
