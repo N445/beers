@@ -1,7 +1,7 @@
 Beers
 =====
 
-##Installation
+Installation
 --------------
 
 ```
