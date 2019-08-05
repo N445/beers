@@ -3,6 +3,10 @@
 namespace App\Command;
 
 use App\Kernel;
+use App\Repository\Beer\BrewerRepository;
+use App\Repository\Beer\CategoryRepository;
+use App\Repository\Beer\StyleRepository;
+use App\Repository\BeerRepository;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -33,6 +37,8 @@ class BeersImportCommand extends Command
     const FILE_DIR = '/var/data/beers/';
     const FILENAME = 'beers.csv';
 
+    const DELIMITER = ';';
+
     protected static $defaultName = 'app:beers:import';
 
     /**
@@ -47,11 +53,23 @@ class BeersImportCommand extends Command
      */
     private $filesystem;
 
-    public function __construct($name = null, KernelInterface $kernel, Filesystem $filesystem)
+    private $filepath;
+
+    private $csvFile;
+
+    private $header;
+
+    private $body;
+
+    public function __construct($name = null,
+                                KernelInterface $kernel,
+                                Filesystem $filesystem)
     {
         $this->kernel      = $kernel;
         $this->project_dir = $kernel->getProjectDir();
         $this->filesystem  = $filesystem;
+        $this->filepath    = $this->project_dir . self::FILE_DIR . self::FILENAME;
+        $this->body        = [];
         parent::__construct($name);
     }
 
@@ -65,9 +83,31 @@ class BeersImportCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        dump($this->project_dir . self::FILE_DIR . self::FILENAME);
-//        $this->filesystem->
+        $this->csvFile = file($this->filepath);
+        $this->setHeader();
+        $this->setBody();
+        dump($this->header);
+        dump($this->body);
 
         $io->success('You have a new command! Now make it your own! Pass --help to see your options.');
+    }
+
+
+    private function setHeader()
+    {
+        $this->header = explode(self::DELIMITER, trim(preg_replace('/\s\s+/', ' ', $this->csvFile[0])));
+        array_shift($this->csvFile);
+    }
+
+    private function setBody()
+    {
+        foreach ($this->csvFile as $line) {
+            $values = explode(self::DELIMITER, trim(preg_replace('/\s\s+/', ' ', $line)));
+            if (count($values) != 22) {
+                //Filtre les ligne non compatible
+                continue;
+            }
+            $this->body[] = array_combine($this->header, $values);
+        }
     }
 }
