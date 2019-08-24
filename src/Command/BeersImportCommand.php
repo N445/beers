@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * todo refacto : remplace csv by json => https://data.opendatasoft.com/explore/dataset/open-beer-database%40public-us/export/?flg=fr
+ */
 namespace App\Command;
 
 use App\Entity\Beer;
@@ -173,6 +175,7 @@ class BeersImportCommand extends Command
             }
 
             $beer = new Beer();
+
             $beer->setName($row[self::HEADER_NAME])
                  ->setLastMod(array_key_exists(self::HEADER_LAST_MOD, $row) ?
                      new DateTime($row[self::HEADER_LAST_MOD], new DateTimeZone('Europe/Paris')) :
@@ -193,6 +196,7 @@ class BeersImportCommand extends Command
             $this->created_beer[] = md5($beer->getName() . $beer->getBrewer()->getName());
             $nb_created_beer++;
             $i++;
+            
             if ($i % 100 == 0) {
                 $this->em->flush();
             }
@@ -317,5 +321,29 @@ class BeersImportCommand extends Command
             (float)$coordinate[0],
             (float)$coordinate[1]
         );
+    }
+
+    /**
+     * @param $beerName
+     * @param $brewerName
+     * @return bool
+     */
+    private function isBeerExiste($beerName, $brewerName)
+    {
+        $hash = md5($beerName . $brewerName);
+        if (in_array($hash, $this->created_beer)) {
+            return true;
+        }
+        if (in_array($hash, $this->beer)) {
+            return true;
+        }
+        return false;
+    }
+
+    private function isBeerValid(string $beerName, $row)
+    {
+        if (empty($beerName) || empty($row[self::HEADER_BREWER])) {
+            return true;
+        }
     }
 }

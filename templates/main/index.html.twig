@@ -4,10 +4,16 @@
 
 {% block body %}
     <div class="container">
-        <ul>
+        <table class="table table-striped table-hover">
             {% for beer in beers %}
-                <li>{{ beer.name }} {{ beer.brewer.name }} {{ beer.brewer.country }}</li>
+                <tr>
+                    <td>{{ beer.name }}</td>
+                    <td>{{ beer.brewer.name }}</td>
+                    <td>{{ beer.brewer.country }}</td>
+                </tr>
             {% endfor %}
+        </table>
+        <ul>
         </ul>
     </div>
 {% endblock %}

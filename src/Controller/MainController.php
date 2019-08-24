@@ -16,7 +16,7 @@ class MainController extends AbstractController
     public function index(BeerRepository $beerRepository)
     {
         return $this->render('main/index.html.twig', [
-            'beers' => $beerRepository->findAll(),
+            'beers' => $beerRepository->getBeers(),
         ]);
     }
 }
