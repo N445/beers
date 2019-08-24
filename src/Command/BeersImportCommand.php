@@ -27,28 +27,28 @@ use Symfony\Component\HttpKernel\KernelInterface;
 
 class BeersImportCommand extends Command
 {
-    const HEADER_NAME                           = 'Name';
+    const HEADER_NAME                           = 'name';
     const HEADER_ID                             = 'id';
     const HEADER_BREWERY_ID                     = 'brewery_id';
     const HEADER_CAT_ID                         = 'cat_id';
     const HEADER_STYLE_ID                       = 'style_id';
-    const HEADER_ALCOHOL_BY_VOLUME              = 'Alcohol By Volume';
-    const HEADER_INTERNATIONAL_BITTERNESS_UNITS = 'International Bitterness Units';
-    const HEADER_STANDARD_REFERENCE_METHOD      = 'Standard Reference Method';
-    const HEADER_UNIVERSAL_PRODUCT_CODE         = 'Universal Product Code';
+    const HEADER_ALCOHOL_BY_VOLUME              = 'abv';
+    const HEADER_INTERNATIONAL_BITTERNESS_UNITS = 'ibu';
+    const HEADER_STANDARD_REFERENCE_METHOD      = 'srm';
+    const HEADER_UNIVERSAL_PRODUCT_CODE         = 'upc';
     const HEADER_FILEPATH                       = 'filepath';
-    const HEADER_DESCRIPTION                    = 'Description';
+    const HEADER_DESCRIPTION                    = 'descript';
     const HEADER_ADD_USER                       = 'add_user';
     const HEADER_LAST_MOD                       = 'last_mod';
-    const HEADER_STYLE                          = 'Style';
-    const HEADER_CATEGORY                       = 'Category';
-    const HEADER_BREWER                         = 'Brewer';
-    const HEADER_ADDRESS                        = 'Address';
-    const HEADER_CITY                           = 'City';
-    const HEADER_STATE                          = 'State';
-    const HEADER_COUNTRY                        = 'Country';
-    const HEADER_COORDINATES                    = 'Coordinates';
-    const HEADER_WEBSITE                        = 'Website';
+    const HEADER_STYLE                          = 'style_name';
+    const HEADER_CATEGORY                       = 'cat_name';
+    const HEADER_BREWER                         = 'name_breweries';
+    const HEADER_ADDRESS                        = 'address1';
+    const HEADER_CITY                           = 'city';
+    const HEADER_STATE                          = 'state';
+    const HEADER_COUNTRY                        = 'country';
+    const HEADER_COORDINATES                    = 'coordinates';
+    const HEADER_WEBSITE                        = 'website';
 
     const FILE_DIR = '/var/data/beers/';
     const FILENAME = 'beers.csv';
@@ -72,6 +72,8 @@ class BeersImportCommand extends Command
     private $filepath;
 
     private $csvFile;
+
+    private $jsonFile;
 
     private $header;
 
@@ -152,34 +154,46 @@ class BeersImportCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $this->getExistingData();
-        $this->csvFile = file($this->filepath);
-        $this->setHeader();
-        $this->setBody();
+
+        $this->getJsonData();
+
         $nb_created_beer = 0;
         $i               = 0;
         $progressBar     = new ProgressBar($output, count($this->body));
         $progressBar->start();
 
-        foreach ($this->body as $row) {
+        foreach ($this->jsonFile as $row) {
             $progressBar->advance();
-            if (in_array($row[self::HEADER_NAME], $this->beer) || in_array($row[self::HEADER_NAME], $this->created_beer)) {
+            if ((int)$row[self::HEADER_ID] === 0) {
                 continue;
             }
+            if (in_array(md5($row[self::HEADER_NAME] . $row[self::HEADER_BREWER]), $this->beer)
+                || in_array(md5($row[self::HEADER_NAME] . $row[self::HEADER_BREWER]), $this->created_beer)) {
+                continue;
+            }
+
             $beer = new Beer();
             $beer->setName($row[self::HEADER_NAME])
-                 ->setDescription($row[self::HEADER_DESCRIPTION])
+                 ->setLastMod(array_key_exists(self::HEADER_LAST_MOD, $row) ?
+                     new DateTime($row[self::HEADER_LAST_MOD], new DateTimeZone('Europe/Paris')) :
+                     new DateTime('NOW', new DateTimeZone('Europe/Paris')))
                  ->setAlcohol((float)$row[self::HEADER_ALCOHOL_BY_VOLUME])
-                 ->setLastMod(new DateTime($row[self::HEADER_LAST_MOD], new DateTimeZone('Europe/Paris')))
             ;
-            $beer->setStyle($this->getStyle($row[self::HEADER_STYLE]));
-            $beer->setCategory($this->getCategory($row[self::HEADER_CATEGORY]));
+            if (array_key_exists(self::HEADER_DESCRIPTION, $row)) {
+                $beer->setDescription($row[self::HEADER_DESCRIPTION]);
+            }
+            $beer->setStyle($this->getStyle(array_key_exists(self::HEADER_STYLE, $row) ?
+                $row[self::HEADER_STYLE] :
+                'NC'));
+            $beer->setCategory($this->getCategory(array_key_exists(self::HEADER_CATEGORY, $row) ?
+                $row[self::HEADER_CATEGORY] :
+                'NC'));
             $beer->setBrewer($this->getBrewer($row));
             $this->em->persist($beer);
-            $this->created_beer[] = $beer->getName();
+            $this->created_beer[] = md5($beer->getName() . $beer->getBrewer()->getName());
             $nb_created_beer++;
             $i++;
-//            $beer->getName();
-            if ($i % 500) {
+            if ($i % 100 == 0) {
                 $this->em->flush();
             }
         }
@@ -188,23 +202,14 @@ class BeersImportCommand extends Command
         $io->success('Bieres importé avec succés !');
     }
 
-
-    private function setHeader()
+    private function getJsonData()
     {
-        $this->header = explode(self::DELIMITER, trim(preg_replace('/\s\s+/', ' ', $this->csvFile[0])));
-        array_shift($this->csvFile);
-    }
-
-    private function setBody()
-    {
-        foreach ($this->csvFile as $line) {
-            $values = explode(self::DELIMITER, trim(preg_replace('/\s\s+/', ' ', $line)));
-            if (count($values) != 22) {
-                //Filtre les ligne non compatible
-                continue;
-            }
-            $this->body[] = array_combine($this->header, $values);
-        }
+        $rawData        = json_decode(
+            file_get_contents('https://data.opendatasoft.com/explore/dataset/open-beer-database@public-us/download/?format=json&timezone=Europe/Berlin'),
+            true);
+        $this->jsonFile = array_map(function ($row) {
+            return $row['fields'];
+        }, $rawData);
     }
 
     private function getExistingData()
@@ -222,7 +227,7 @@ class BeersImportCommand extends Command
         }
 
         foreach ($this->beerRepository->findAll() as $beer) {
-            $this->beer[] = $beer->getName();
+            $this->beer[] = md5($beer->getName() . $beer->getBrewer()->getName());
         }
     }
 
@@ -277,13 +282,25 @@ class BeersImportCommand extends Command
             return $this->created_brewer[$row[self::HEADER_BREWER]];
         }
         $brewer = new Brewer($row[self::HEADER_BREWER]);
-        $brewer->setAddress($row[self::HEADER_ADDRESS])
-               ->setCity($row[self::HEADER_CITY])
-               ->setCoordinate($this->getCoordinate($row[self::HEADER_COORDINATES]))
-               ->setCountry($row[self::HEADER_COUNTRY])
-               ->setState($row[self::HEADER_STATE])
-               ->setWebsite($row[self::HEADER_WEBSITE])
-        ;
+        if (array_key_exists(self::HEADER_COUNTRY, $row)) {
+            $brewer->setCountry($row[self::HEADER_COUNTRY]);
+        }
+        if (array_key_exists(self::HEADER_CITY, $row)) {
+            $brewer->setCity($row[self::HEADER_CITY]);
+        }
+        if (array_key_exists(self::HEADER_ADDRESS, $row)) {
+            $brewer->setAddress($row[self::HEADER_ADDRESS]);
+        }
+        if (array_key_exists(self::HEADER_WEBSITE, $row)) {
+            $brewer->setWebsite($row[self::HEADER_WEBSITE]);
+        }
+        if (array_key_exists(self::HEADER_STATE, $row)) {
+            $brewer->setState($row[self::HEADER_STATE]);
+        }
+
+        if (array_key_exists(self::HEADER_COORDINATES, $row)) {
+            $brewer->setCoordinate($this->getCoordinate($row[self::HEADER_COORDINATES]));
+        }
 
         $this->created_brewer[$brewer->getName()] = $brewer;
         return $brewer;
@@ -295,16 +312,10 @@ class BeersImportCommand extends Command
      */
     private function getCoordinate($coordinate)
     {
-        if (empty($coordinate)) {
-            return null;
-        }
-        $explodedData = explode(',', $coordinate);
-        if (!is_array($explodedData)) {
-            return null;
-        }
+
         return new Coordinate(
-            (float)$explodedData[0],
-            (float)$explodedData[1]
+            (float)$coordinate[0],
+            (float)$coordinate[1]
         );
     }
 }

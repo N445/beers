@@ -51,14 +51,14 @@ class Brewer
     private $website;
 
     /**
-     * @ORM\OneToOne(targetEntity="App\Entity\Coordinate", cascade={"persist", "remove"})
-     */
-    private $coordinate;
-
-    /**
      * @ORM\OneToMany(targetEntity="App\Entity\Beer", mappedBy="brewer")
      */
     private $beers;
+
+    /**
+     * @ORM\OneToOne(targetEntity="App\Entity\Coordinate", cascade={"persist", "remove"})
+     */
+    private $coordinate;
 
     /**
      * Brewer constructor.
@@ -66,7 +66,6 @@ class Brewer
      */
     public function __construct($name = null)
     {
-        $this->coordinate = new ArrayCollection();
         $this->beers      = new ArrayCollection();
         $this->name       = $name;
     }
@@ -194,25 +193,6 @@ class Brewer
     }
 
     /**
-     * @return Coordinate|null
-     */
-    public function getCoordinate(): ?Coordinate
-    {
-        return $this->coordinate;
-    }
-
-    /**
-     * @param Coordinate|null $coordinate
-     * @return Brewer
-     */
-    public function setCoordinate(?Coordinate $coordinate): self
-    {
-        $this->coordinate = $coordinate;
-
-        return $this;
-    }
-
-    /**
      * @return Collection|Beer[]
      */
     public function getBeers(): Collection
@@ -239,6 +219,18 @@ class Brewer
                 $beer->setBrewer(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getCoordinate(): ?Coordinate
+    {
+        return $this->coordinate;
+    }
+
+    public function setCoordinate(?Coordinate $coordinate): self
+    {
+        $this->coordinate = $coordinate;
 
         return $this;
     }

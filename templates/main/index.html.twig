@@ -6,7 +6,7 @@
     <div class="container">
         <ul>
             {% for beer in beers %}
-                <li>{{ beer.name }}</li>
+                <li>{{ beer.name }} {{ beer.brewer.name }} {{ beer.brewer.country }}</li>
             {% endfor %}
         </ul>
     </div>
