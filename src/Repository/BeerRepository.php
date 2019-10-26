@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Beer;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Bridge\Doctrine\RegistryInterface;
 
 /**
@@ -24,12 +25,25 @@ class BeerRepository extends ServiceEntityRepository
      */
     public function getBeers()
     {
+        return $this->baseQuery()
+                    ->getQuery()
+                    ->getResult()
+            ;
+    }
+
+    /**
+     * @return QueryBuilder
+     */
+    private function baseQuery()
+    {
         return $this->createQueryBuilder('b')
+                    ->addSelect('brewer', 'category', 'style', 'coordinate')
                     ->orderBy('b.name', 'ASC')
                     ->addOrderBy('brewer.name', 'ASC')
                     ->leftJoin('b.brewer', 'brewer')
-                    ->getQuery()
-                    ->getResult()
+                    ->leftJoin('b.category', 'category')
+                    ->leftJoin('b.style', 'style')
+                    ->leftJoin('brewer.coordinate', 'coordinate')
             ;
     }
 

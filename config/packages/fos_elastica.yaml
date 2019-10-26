@@ -1,0 +1,52 @@
+# Read the documentation: https://github.com/FriendsOfSymfony/FOSElasticaBundle/blob/master/Resources/doc/setup.md
+fos_elastica:
+    clients:
+        default: { url: '%env(ELASTICSEARCH_URL)%' }
+    indexes:
+        beers:
+            settings:
+              index:
+                analysis:
+                  analyzer:
+                    my_analyzer:
+                      type: custom
+                      tokenizer: lowercase
+                      filter: [my_ngram]
+                  filter:
+                    my_ngram:
+                      type: "nGram"
+                      min_gram: 3
+                      max_gram: 7
+            types:
+                beer:
+                    properties:
+                        name: {boost: 5}
+                        alcohol: {boost: 1}
+                        description: {boost: 2}
+                        style:
+                            type: "nested"
+                            properties:
+                                name: {boost: 4}
+                        category:
+                            type: "nested"
+                            properties:
+                                name:  {boost: 2}
+                        brewer:
+                            type: "nested"
+                            properties:
+                                name:  {boost: 5}
+                                address:  {boost: 1}
+                                city:  {boost: 1}
+                                state:  {boost: 1}
+                                country:  {boost: 1}
+                                coordinate:
+                                    type: "nested"
+                                    properties:
+                                        lat: ~
+                                        lng: ~
+                    persistence:
+                        # the driver can be orm, mongodb or phpcr
+                        driver: orm
+                        model: App\Entity\Beer
+                        provider: ~
+                        finder: ~

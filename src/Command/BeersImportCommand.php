@@ -1,7 +1,9 @@
 <?php
 /**
- * todo refacto : remplace csv by json => https://data.opendatasoft.com/explore/dataset/open-beer-database%40public-us/export/?flg=fr
+ * todo refacto : remplace csv by json =>
+ * https://data.opendatasoft.com/explore/dataset/open-beer-database%40public-us/export/?flg=fr
  */
+
 namespace App\Command;
 
 use App\Entity\Beer;
@@ -196,7 +198,7 @@ class BeersImportCommand extends Command
             $this->created_beer[] = md5($beer->getName() . $beer->getBrewer()->getName());
             $nb_created_beer++;
             $i++;
-            
+
             if ($i % 100 == 0) {
                 $this->em->flush();
             }
@@ -347,3 +349,4 @@ class BeersImportCommand extends Command
         }
     }
 }
+
