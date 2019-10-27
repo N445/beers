@@ -60,7 +60,7 @@ class Search
     {
         return array_map(function ($result) {
             $beer = new Beer();
-            $b
+//            $b
         }, $results);
         $objects = [];
         foreach ($results as $result) {

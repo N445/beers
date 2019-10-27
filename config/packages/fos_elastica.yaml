@@ -21,7 +21,7 @@ fos_elastica:
                 beer:
                     properties:
                         name: {boost: 5}
-                        alcohol: {boost: 1}
+                        alcohol: {boost: 1,type: float}
                         description: {boost: 2}
                         style:
                             type: "nested"
