@@ -45,13 +45,15 @@ class MainController extends AbstractController
         $search = new Search();
         $form   = $this->createForm(SearchType::class, $search);
         $form->handleRequest($request);
-        $result = $this->search->search('Irish');
-        dump($result);
+//        $beers = $this->search->search('Irish');
+        $beers = $this->beerProvider->getAll();
         if ($form->isSubmitted() && $form->isValid()) {
             dump($search);
         }
+        dump($beers);
+
         return $this->render('main/index.html.twig', [
-            'beers'  => $this->beerProvider->getAll(),
+            'beers'  => $beers,
             'search' => $form->createView(),
         ]);
     }

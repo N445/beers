@@ -159,43 +159,36 @@ class BeersImportCommand extends Command
 
         $this->getExistingData();
 
-        $this->getJsonData();
-
         $nb_created_beer = 0;
         $i               = 0;
         $progressBar     = new ProgressBar($output, count($this->body));
         $progressBar->start();
 
-        foreach ($this->jsonFile as $row) {
+        foreach ($this->getData() as $row) {
             $progressBar->advance();
-            if ((int)$row[self::HEADER_ID] === 0) {
-                continue;
-            }
-            if (in_array(md5($row[self::HEADER_NAME] . $row[self::HEADER_BREWER]), $this->beer)
-                || in_array(md5($row[self::HEADER_NAME] . $row[self::HEADER_BREWER]), $this->created_beer)) {
+
+            if ($this->beerIsValid($row)) {
                 continue;
             }
 
             $beer = new Beer();
 
             $beer->setName($row[self::HEADER_NAME])
-                 ->setLastMod(array_key_exists(self::HEADER_LAST_MOD, $row) ?
-                     new DateTime($row[self::HEADER_LAST_MOD], new DateTimeZone('Europe/Paris')) :
-                     new DateTime('NOW', new DateTimeZone('Europe/Paris')))
                  ->setAlcohol((float)$row[self::HEADER_ALCOHOL_BY_VOLUME])
             ;
-            if (array_key_exists(self::HEADER_DESCRIPTION, $row)) {
-                $beer->setDescription($row[self::HEADER_DESCRIPTION]);
-            }
-            $beer->setStyle($this->getStyle(array_key_exists(self::HEADER_STYLE, $row) ?
-                $row[self::HEADER_STYLE] :
-                'NC'));
-            $beer->setCategory($this->getCategory(array_key_exists(self::HEADER_CATEGORY, $row) ?
-                $row[self::HEADER_CATEGORY] :
-                'NC'));
+
+            $this->setBeerLastMod($beer, $row);
+            $this->setBeerDescription($beer, $row);
+            $this->setBeerStyle($beer, $row);
+            $this->setBeerCategory($beer, $row);
+            $this->setBeerBrewer($beer, $row);
+
             $beer->setBrewer($this->getBrewer($row));
+
             $this->em->persist($beer);
+
             $this->created_beer[] = md5($beer->getName() . $beer->getBrewer()->getName());
+
             $nb_created_beer++;
             $i++;
 
@@ -208,12 +201,12 @@ class BeersImportCommand extends Command
         $io->success('Bieres importé avec succés !');
     }
 
-    private function getJsonData()
+    private function getData()
     {
-        $rawData        = json_decode(
-            file_get_contents('https://data.opendatasoft.com/explore/dataset/open-beer-database@public-us/download/?format=json&timezone=Europe/Berlin'),
+        $rawData = json_decode(
+            file_get_contents('https://data.opendatasoft.com/explore/dataset/open-beer-database@public-us/download/?format=json&timezone=Europe/Paris'),
             true);
-        $this->jsonFile = array_map(function ($row) {
+        return array_map(function ($row) {
             return $row['fields'];
         }, $rawData);
     }
@@ -235,6 +228,53 @@ class BeersImportCommand extends Command
         foreach ($this->beerRepository->findAll() as $beer) {
             $this->beer[] = md5($beer->getName() . $beer->getBrewer()->getName());
         }
+    }
+
+    /**
+     * @param Beer $beer
+     * @param      $row
+     * @throws \Exception
+     */
+    private function setBeerLastMod(Beer &$beer, $row)
+    {
+        $dateTimeZone = new DateTimeZone('Europe/Paris');
+        $lastMod      = array_key_exists(self::HEADER_LAST_MOD, $row) ?
+            new DateTime($row[self::HEADER_LAST_MOD], $dateTimeZone) :
+            new DateTime('NOW', $dateTimeZone);
+        $beer->setLastMod($lastMod);
+    }
+
+    /**
+     * @param Beer $beer
+     * @param      $row
+     */
+    private function setBeerDescription(Beer &$beer, $row)
+    {
+        if (array_key_exists(self::HEADER_DESCRIPTION, $row)) {
+            $beer->setDescription($row[self::HEADER_DESCRIPTION]);
+        }
+    }
+
+    /**
+     * @param Beer $beer
+     * @param      $row
+     */
+    private function setBeerStyle(Beer &$beer, $row)
+    {
+        $beer->setStyle($this->getStyle(array_key_exists(self::HEADER_STYLE, $row) ?
+            $row[self::HEADER_STYLE] :
+            'NC'));
+    }
+
+    /**
+     * @param Beer $beer
+     * @param      $row
+     */
+    private function setBeerCategory(Beer &$beer, $row)
+    {
+        $beer->setCategory($this->getCategory(array_key_exists(self::HEADER_CATEGORY, $row) ?
+            $row[self::HEADER_CATEGORY] :
+            'NC'));
     }
 
     /**
@@ -326,27 +366,19 @@ class BeersImportCommand extends Command
     }
 
     /**
-     * @param $beerName
-     * @param $brewerName
+     * @param $row
      * @return bool
      */
-    private function isBeerExiste($beerName, $brewerName)
+    private function beerIsValid($row)
     {
-        $hash = md5($beerName . $brewerName);
-        if (in_array($hash, $this->created_beer)) {
+        if ((int)$row[self::HEADER_ID] === 0) {
             return true;
         }
-        if (in_array($hash, $this->beer)) {
+        if (in_array(md5($row[self::HEADER_NAME] . $row[self::HEADER_BREWER]), $this->beer)
+            || in_array(md5($row[self::HEADER_NAME] . $row[self::HEADER_BREWER]), $this->created_beer)) {
             return true;
         }
         return false;
-    }
-
-    private function isBeerValid(string $beerName, $row)
-    {
-        if (empty($beerName) || empty($row[self::HEADER_BREWER])) {
-            return true;
-        }
     }
 }
 
